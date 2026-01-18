@@ -1,0 +1,12 @@
+[Unit]
+Description=Stooq Data Downloader
+After=network.target
+
+[Service]
+Type=oneshot
+# Assuming the repository is cloned at ~/GitHub/stooq
+# %h represents the user's home directory
+WorkingDirectory=%h/GitHub/stooq
+ExecStart=%h/GitHub/stooq/.venv/bin/python3 src/download.py
+StandardOutput=append:%h/GitHub/stooq/logs/download.log
+StandardError=append:%h/GitHub/stooq/logs/download_error.log

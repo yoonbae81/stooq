@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Stooq Downloader every hour at minute 10
+
+[Timer]
+# Run hourly at minute 10 (e.g., 00:10, 01:10, 02:10 ...)
+OnCalendar=*-*-* *:10:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

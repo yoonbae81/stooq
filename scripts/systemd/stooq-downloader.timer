@@ -1,10 +1,9 @@
 [Unit]
-Description=Run Stooq Downloader every hour at minute 10
+Description=Run Stooq Downloader at 06:00 KST (16:00 EST) on Tuesday through Saturday
 
 [Timer]
-# Run hourly at minute 10 (e.g., 00:10, 01:10, 02:10 ...)
-OnCalendar=*-*-* *:10:00
-Persistent=true
+# Run at 06:00 on Tuesday through Saturday
+OnCalendar=Tue..Sat *-*-* 06:00:00
 
 [Install]
 WantedBy=timers.target

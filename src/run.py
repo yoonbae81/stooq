@@ -214,7 +214,10 @@ def main():
     if success_row_index != -1:
         print("\n✨ FINAL SUCCESS: Verified data obtained and cleaned.")
     else:
-        print("\n❌ FINAL FAILURE: All candidate rows failed verification.")
+        if target_date_clean:
+            print(f"\n❌ FINAL FAILURE: Data for {args.date} failed verification and was discarded.")
+        else:
+            print("\n❌ FINAL FAILURE: All candidate rows failed verification.")
     
     clean_downloaded_data(data_dir)
 

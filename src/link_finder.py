@@ -4,27 +4,25 @@ import datetime
 
 def get_latest_download_link(session):
     """
-    Get the topmost (newest) row's download links for _d, _h, _5.
-    Returns filenames in YYYYMMDD_suffix.txt format (server-side filename style).
+    Scans the Stooq DB page and returns a list of rows. 
+    Each row is a list of (url, final_filename) for _d, _h, _5.
+    Returns up to 3 complete rows.
     """
-    print("🔍 Searching for the latest download link...")
+    print("🔍 Searching for download links (top 3 rows)...")
     try:
         res = session.get("https://stooq.com/db/", timeout=15)
         os.makedirs("tmp", exist_ok=True)
         with open("tmp/debug_db_page.html", "w") as f:
             f.write(res.text)
             
-        rows = res.text.split('</tr>')
-        
-        # Find the first row that has all three link types: _d, _h, _5
-        print("🕵️  Scanning for the topmost row with _d, _h, _5 links...")
+        rows_html = res.text.split('</tr>')
         
         # Pattern to match links like: href='db/d/?d=20260119&t=d'>0119_d
         pattern = r'href=["\']?([^"\'>]*[?&]t=[dh5])["\']?[^>]*>([^<]*)'
-        
         required = ["_d", "_h", "_5"]
+        all_candidate_rows = []
         
-        for row in rows:
+        for row in rows_html:
             row_links = re.findall(pattern, row)
             matches = {suffix: None for suffix in required}
             
@@ -33,10 +31,8 @@ def get_latest_download_link(session):
                     if text.endswith(suffix):
                         matches[suffix] = (href, text)
             
-            # If we found all three types in this row, use it
+            # If we found all three types in this row, process it
             if all(matches.values()):
-                print(f"✅ Found topmost row with all link types")
-                
                 # Extract date from the first link text (e.g., "0119_d" -> "0119")
                 first_text = matches["_d"][1]
                 mmdd = first_text.replace("_d", "")
@@ -52,9 +48,8 @@ def get_latest_download_link(session):
                     year = now.year
                 
                 yyyymmdd = f"{year}{mmdd}"
-                print(f"📅 Date: {yyyymmdd}")
                 
-                target_links = []
+                row_targets = []
                 for suffix in required:
                     href, text = matches[suffix]
                     
@@ -69,12 +64,19 @@ def get_latest_download_link(session):
                     
                     # Build filename: YYYYMMDD_suffix.txt
                     final_name = f"{yyyymmdd}{suffix}.txt"
-                    target_links.append((url, final_name))
+                    row_targets.append((url, final_name))
                 
-                print(f"🎯 Selected targets: {[t[1] for t in target_links]}")
-                return target_links
+                all_candidate_rows.append(row_targets)
+                if len(all_candidate_rows) >= 20:
+                    break
         
-        print("⚠️  Could not find a row with all three link types (_d, _h, _5).")
+        if all_candidate_rows:
+            print(f"✅ Found {len(all_candidate_rows)} complete rows.")
+            for i, row in enumerate(all_candidate_rows):
+                print(f"   Row {i+1}: {[t[1] for t in row]}")
+            return all_candidate_rows
+        
+        print("⚠️  Could not find any rows with all three link types (_d, _h, _5).")
         return None
         
     except Exception as e:

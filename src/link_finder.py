@@ -8,7 +8,6 @@ def get_latest_download_link(session):
     Each row is a list of (url, final_filename) for _d, _h, _5.
     Returns up to 3 complete rows.
     """
-    print("🔍 Searching for download links (top 3 rows)...")
     try:
         res = session.get("https://stooq.com/db/", timeout=15)
         os.makedirs("tmp", exist_ok=True)
@@ -71,9 +70,6 @@ def get_latest_download_link(session):
                     break
         
         if all_candidate_rows:
-            print(f"✅ Found {len(all_candidate_rows)} complete rows.")
-            for i, row in enumerate(all_candidate_rows):
-                print(f"   Row {i+1}: {[t[1] for t in row]}")
             return all_candidate_rows
         
         print("⚠️  Could not find any rows with all three link types (_d, _h, _5).")

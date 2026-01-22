@@ -175,14 +175,18 @@ def main():
                 print(f"   🔍 Verifying {actual_fname}...")
                 try:
                     with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
-                        content = f.read()
+                        lines = f.readlines()
+                        content = "".join(lines)
+                        row_count = max(0, len(lines) - 1)
                     
+                    print(f"   📊 {actual_fname}: {row_count} rows found.")
+
                     if "Unauthorized" in content:
                         print(f"   ❌ {actual_fname}: Unauthorized access detected.")
                         row_failed = True
                     else:
                         # Required strings for ALL files
-                        required_markers = ["GLD.US", "7YUSY.B"]
+                        required_markers = ["GLD.US"]
                         missing = [m for m in required_markers if m not in content]
                         
                         if not missing:

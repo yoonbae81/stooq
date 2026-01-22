@@ -14,24 +14,26 @@ def download_with_browser(page, download_url, filename, data_dir):
     Uses the server-suggested filename as requested by the user.
     """
     print(f"🚀 Starting Browser Download: {filename}")
-    print(f"   URL: {download_url}")
+    
+    # Small delay to avoid rapid-fire triggers
+    time.sleep(2)
     
     try:
+        # Set Referer to satisfy Stooq verification
+        referer = "https://stooq.com/db/"
+        
         # Use expect_download context
-        with page.expect_download(timeout=30000) as download_info:
+        with page.expect_download(timeout=60000) as download_info:
             try:
-                page.goto(download_url, timeout=30000)
+                # Use headers if possible, but page.goto only supports limited options
+                # The most reliable way to set referer in Playwright is via the context or page.goto options
+                page.goto(download_url, timeout=30000, referer=referer)
             except Exception as e:
                 # Navigation might fail if it's a "download-only" response
                 pass
 
         download = download_info.value
         suggested_name = download.suggested_filename
-        
-        # If the suggested name doesn't start with the YYYY prefix we want, 
-        # we might need to be careful, but the user requested "exactly as sent".
-        # Stooq usually sends YYYYMMDD_suffix.txt
-        
         save_path = os.path.join(data_dir, suggested_name)
         
         print(f"   ⬇️  Download started... ({suggested_name})")
@@ -54,12 +56,7 @@ def download_with_browser(page, download_url, filename, data_dir):
 
 def clean_downloaded_data(data_dir):
     """
-    Clean/List downloaded files.
+    Placeholder for future cleanup logic if needed. 
+    Listing logs removed per user request.
     """
-    print("🧹 Listing verified data files...")
-    
-    files = [f for f in os.listdir(data_dir) if f.endswith('.csv') or f.endswith('.txt')]
-    for fname in files:
-        fpath = os.path.join(data_dir, fname)
-        if os.path.exists(fpath):
-             print(f"   ✓ {fname}: File Verified.")
+    pass

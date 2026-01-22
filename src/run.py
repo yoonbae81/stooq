@@ -153,8 +153,11 @@ def main():
                 return
 
         success_row_index = -1
-        for row_idx, row_links in enumerate(candidate_rows):
-            print(f"\n   📂 Processing Row {row_idx + 1}/{len(candidate_rows)}: {[t[1] for t in row_links]}")
+        # Limit to top 3 rows as requested, unless a specific date is specified
+        limit_rows = 3 if not target_date_clean else len(candidate_rows)
+        
+        for row_idx, row_links in enumerate(candidate_rows[:limit_rows]):
+            print(f"\n   📂 Processing Row {row_idx + 1}/{min(limit_rows, len(candidate_rows))}: {[t[1] for t in row_links]}")
             
             downloaded_files = [] # list of full file paths for this row
             row_failed = False
@@ -164,50 +167,51 @@ def main():
                 if not actual_fname:
                     row_failed = True
                     break
-                downloaded_files.append(os.path.join(data_dir, actual_fname))
+                
+                fpath = os.path.join(data_dir, actual_fname)
+                downloaded_files.append(fpath)
 
-            if row_failed:
-                print(f"   ⚠️  Row {row_idx + 1} incomplete download. Cleaning up...")
-                for fpath in downloaded_files:
-                    if os.path.exists(fpath): os.remove(fpath)
-                continue
-
-            # VERIFY ROW
-            print(f"   🔍 Verifying row data quality...")
-            row_verified = True
-            for fpath in downloaded_files:
-                fname = os.path.basename(fpath)
+                # IMMEDIATE VERIFICATION
+                print(f"   🔍 Verifying {actual_fname}...")
                 try:
                     with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
                         content = f.read()
                     
                     if "Unauthorized" in content:
-                        print(f"   ❌ {fname}: Unauthorized access detected.")
-                        row_verified = False
-                        break
-                    
-                    # Target Verification: AAPL.US must be in 5min or Hourly
-                    if "_5" in fname or "_h" in fname:
-                        if "AAPL.US" in content:
-                            print(f"   ✅ {fname} contains AAPL.US")
+                        print(f"   ❌ {actual_fname}: Unauthorized access detected.")
+                        row_failed = True
+                    else:
+                        # Required strings for ALL files
+                        required_markers = ["GLD.US", "7YUSY.B"]
+                        missing = [m for m in required_markers if m not in content]
+                        
+                        if not missing:
+                            print(f"   ✅ {actual_fname} contains required markers ({', '.join(required_markers)})")
                         else:
-                            print(f"   ❌ {fname} DOES NOT contain AAPL.US")
-                            row_verified = False
-                            break
+                            print(f"   ❌ {actual_fname} MISSING required markers: {', '.join(missing)}")
+                            row_failed = True
                             
                 except Exception as e:
-                    print(f"   ⚠️  Error reading {fname}: {e}")
-                    row_verified = False
+                    print(f"   ⚠️  Error reading {actual_fname}: {e}")
+                    row_failed = True
+                
+                if row_failed:
                     break
-            
-            if row_verified:
-                print(f"   ✨ SUCCESS: Row {row_idx + 1} passed verification.")
-                success_row_index = row_idx
-                break
-            else:
-                print(f"   🗑️  Row {row_idx + 1} verification failed. Deleting files...")
+
+            if row_failed:
+                print(f"   🗑️  Row {row_idx + 1} failed verification. Discarding partial set...")
                 for fpath in downloaded_files:
                     if os.path.exists(fpath): os.remove(fpath)
+                
+                # If a specific date was requested, do not fallback
+                if target_date_clean:
+                    break
+                continue
+
+            # If we reach here, all 3 files passed verification
+            print(f"   ✨ SUCCESS: Row {row_idx + 1} set passed verification.")
+            success_row_index = row_idx
+            break
         
         browser.close()
 
@@ -219,7 +223,6 @@ def main():
         else:
             print("\n❌ FINAL FAILURE: All candidate rows failed verification.")
     
-    clean_downloaded_data(data_dir)
 
 if __name__ == "__main__":
     main()

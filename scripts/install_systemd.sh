@@ -1,11 +1,20 @@
 #!/bin/bash
 set -e
 
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+# Project root is one level up from scripts/
+PROJECT_DIR="$( cd "$SCRIPT_DIR/.." &> /dev/null && pwd )"
+
 # Define variables
 SERVICE_NAME="stooq-downloader"
-SERVICE_FILE="scripts/systemd/${SERVICE_NAME}.service"
-TIMER_FILE="scripts/systemd/${SERVICE_NAME}.timer"
+SERVICE_TEMPLATE="$SCRIPT_DIR/systemd/${SERVICE_NAME}.service"
+TIMER_TEMPLATE="$SCRIPT_DIR/systemd/${SERVICE_NAME}.timer"
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
+PYTHON_EXECUTABLE="$PROJECT_DIR/.venv/bin/python3"
+
+echo "📍 Project Root: $PROJECT_DIR"
+echo "🐍 Python Exec: $PYTHON_EXECUTABLE"
 
 # Check if running on Linux
 if [[ "$(uname)" != "Linux" ]]; then
@@ -15,15 +24,21 @@ if [[ "$(uname)" != "Linux" ]]; then
 fi
 
 # Ensure log directory exists
-mkdir -p logs
+mkdir -p "$PROJECT_DIR/logs"
 
 # Create systemd user directory
 mkdir -p "$SYSTEMD_USER_DIR"
 
-# Install files
+# Install files with path replacement
 echo "📦 Installing systemd units to $SYSTEMD_USER_DIR..."
-cp "$SERVICE_FILE" "$SYSTEMD_USER_DIR/"
-cp "$TIMER_FILE" "$SYSTEMD_USER_DIR/"
+
+# Replace placeholders in service file and save to systemd directory
+sed -e "s|{{WORKING_DIRECTORY}}|$PROJECT_DIR|g" \
+    -e "s|{{PYTHON_EXECUTABLE}}|$PYTHON_EXECUTABLE|g" \
+    "$SERVICE_TEMPLATE" > "$SYSTEMD_USER_DIR/${SERVICE_NAME}.service"
+
+# Copy timer file
+cp "$TIMER_TEMPLATE" "$SYSTEMD_USER_DIR/"
 
 # Reload systemd
 echo "🔄 Reloading systemd daemon..."

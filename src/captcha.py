@@ -120,8 +120,8 @@ def solve_stooq_captcha(page, max_retries=10):
     
     page.wait_for_load_state("domcontentloaded")
     
-    # Reset/Reload to clear old state
-    page.reload() 
+    # Reset/Reload to clear old state - use domcontentloaded to avoid ad-related timeouts
+    page.reload(wait_until="domcontentloaded", timeout=60000) 
     page.wait_for_timeout(2000)
 
     captcha_solved = False
@@ -144,61 +144,74 @@ def solve_stooq_captcha(page, max_retries=10):
             
             # Click and wait for response OR download
             try:
-                with page.expect_response(lambda r: "/q/l/s/i/" in r.url, timeout=5000) as resp:
-                    download_link.click(timeout=5000)
+                # Small retry for the click itself if page state is unstable
+                click_success = False
+                for click_attempt in range(2):
+                    try:
+                        with page.expect_response(lambda r: "/q/l/s/i/" in r.url, timeout=5000) as resp:
+                            download_link.click(timeout=5000)
+                        click_success = True
+                        break
+                    except:
+                        if downloads: # If download started, we are authorized
+                            click_success = True
+                            break
+                        page.wait_for_timeout(1000)
                 
-                # If we get here, we got an image response -> CAPTCHA needed
-                temp_captcha = "tmp/current_captcha.png"
-                os.makedirs("tmp", exist_ok=True)
-                with open(temp_captcha, 'wb') as f:
-                    f.write(resp.value.body())
-                
-                solution = solve_text_from_image(temp_captcha)
-                print(f"      🧠 Auto-solver: {solution}")
-                
-                # Fill and submit
-                page.fill("#f15", "")
-                page.fill("#f15", solution)
-                page.keyboard.press("Enter")
-                
-                # Wait to see result
-                page.wait_for_timeout(3000)
-                
-                content = page.content()
-                if "Authorization successful!" in content:
-                    print("      ✅ Authorization successful!")
+                if not click_success and not downloads:
+                    raise Exception("Could not trigger CAPTCHA or Download after click retries.")
+
+                if not downloads:
+                    # If we get here, we got an image response -> CAPTCHA needed
+                    temp_captcha = "tmp/current_captcha.png"
+                    os.makedirs("tmp", exist_ok=True)
+                    with open(temp_captcha, 'wb') as f:
+                        f.write(resp.value.body())
+                    
+                    solution = solve_text_from_image(temp_captcha)
+                    print(f"      🧠 Auto-solver: {solution}")
+                    
+                    # Fill and submit
+                    page.fill("#f15", "")
+                    page.fill("#f15", solution)
+                    page.keyboard.press("Enter")
+                    
+                    # Wait to see result
+                    page.wait_for_timeout(3000)
+                    
+                    content = page.content()
+                    if "Authorization successful!" in content:
+                        print("      ✅ Authorization successful!")
+                        captcha_solved = True
+                        break
+                    elif "Incorrect code" in content or "f15" in content:
+                        print("      ❌ Incorrect code or retry required. Retrying...")
+                        continue
+                    else:
+                        if not page.locator("#f15").is_visible():
+                                print("      ❓ Overlay gone, assuming success.")
+                                captcha_solved = True
+                                break
+                else:
+                    print("      ✅ Already authorized!")
+                    downloads[0].cancel()
                     captcha_solved = True
                     break
-                elif "Incorrect code" in content or "f15" in content:
-                    print("      ❌ Incorrect code or retry required. Retrying...")
-                    continue
-                else:
-                    if not page.locator("#f15").is_visible():
-                            print("      ❓ Overlay gone, assuming success.")
-                            captcha_solved = True
-                            break
                             
             except Exception as e:
                 # Check for download (Already Authorized)
                 if downloads:
-                    print("      ✅ Download started immediately. Already authorized!")
+                    print("      ✅ Download started. Already authorized!")
                     downloads[0].cancel()
                     captcha_solved = True
                     break
                     
                 if "Timeout" in str(e):
-                    # Timeout waiting for likely image response, but maybe download triggered late?
-                    if downloads:
-                        print("      ✅ Download started (late detect). Already authorized!")
-                        downloads[0].cancel()
-                        captcha_solved = True
-                        break
                     print("         (Timeout waiting for CAPTCHA response)")
                 else:
                     print(f"      ⚠️  Error during inner CAPTCHA step: {e}")
                 
-                page.reload()
-                page.wait_for_load_state("domcontentloaded")
+                page.reload(wait_until="domcontentloaded", timeout=60000)
                 page.wait_for_timeout(2000)
 
         finally:

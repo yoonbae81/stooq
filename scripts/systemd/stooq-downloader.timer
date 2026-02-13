@@ -2,8 +2,7 @@
 Description=Run Stooq Downloader at 06:00 KST (16:00 EST) on Tuesday through Saturday
 
 [Timer]
-# Run at 06:00 on Tuesday through Saturday
-OnCalendar=Tue..Sat *-*-* 06:00:00
+OnCalendar=Tue..Sat *-*-* 08:00:00
 
 [Install]
 WantedBy=timers.target

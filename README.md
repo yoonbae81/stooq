@@ -15,7 +15,7 @@ A high-performance, fully automated Python tool designed to download market data
 
 The project is designed with a modular architecture for easy maintenance and reliability:
 
-- **`src/run.py`**: The central orchestrator that manages the entire workflow.
+- **`src/main.py`**: The central orchestrator that manages the entire workflow.
 - **`src/configurator.py`**: Handles browser-based configuration of Stooq data settings.
 - **`src/captcha.py`**: The recognition engine that solves authorization challenges.
 - **`src/session_manager.py`**: Manages cookie persistence and local directory setup.
@@ -46,7 +46,7 @@ The project is designed with a modular architecture for easy maintenance and rel
 ### Manual Execution
 To run the downloader manually and fetch the latest files:
 ```bash
-.venv/bin/python src/run.py
+.venv/bin/python src/main.py
 ```
 
 Optional arguments:
@@ -75,7 +75,7 @@ This will set up `stooq-downloader.timer` to run the task periodically.
 ```text
 stooq/
 ├── src/
-│   ├── run.py               # Main orchestrator
+│   ├── main.py              # Main orchestrator
 │   ├── captcha.py           # CAPTCHA solving logic
 │   ├── configurator.py      # Stooq settings automation
 │   ├── downloader.py        # File download handling

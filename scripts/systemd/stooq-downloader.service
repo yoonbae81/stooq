@@ -4,15 +4,10 @@ After=network.target
 
 [Service]
 Type=oneshot
-# These placeholders are replaced by scripts/install_systemd.sh during installation
-WorkingDirectory={{WORKING_DIRECTORY}}
-
-# Check for existence of essential files to provide clearer error messages in logs
-ExecStartPre=/bin/bash -c 'if [ ! -x "{{PYTHON_EXECUTABLE}}" ]; then echo "❌ Error: Python executable not found at {{PYTHON_EXECUTABLE}}"; exit 1; fi'
-ExecStartPre=/bin/bash -c 'if [ ! -f "src/run.py" ]; then echo "❌ Error: src/run.py not found in {{WORKING_DIRECTORY}}"; exit 1; fi'
-
-ExecStart={{PYTHON_EXECUTABLE}} src/run.py
-
+# Assuming the repository is cloned at ~/GitHub/stooq
+# %h represents the user's home directory
+WorkingDirectory=%h/GitHub/stooq
+ExecStart=%h/GitHub/stooq/.venv/bin/python3 src/main.py
 # Logs are sent to systemd journal (view with: journalctl --user -u stooq-downloader)
 StandardOutput=journal
 StandardError=journal

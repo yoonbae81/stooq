@@ -3,3 +3,5 @@ Pillow
 scipy
 requests
 playwright
+script-reporter
+python-dotenv

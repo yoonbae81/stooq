@@ -34,7 +34,7 @@ def run(sr: ScriptReporter, args):
             # Validate format and convert to YYYYMMDD
             target_date_obj = datetime.strptime(args.date, "%Y-%m-%d")
             target_date_clean = target_date_obj.strftime("%Y%m%d")
-            sr.log(f"🎯 Target Date Filter: {args.date} ({target_date_clean})")
+            print(f"🎯 Target Date Filter: {args.date} ({target_date_clean})")
         except ValueError:
             sr.fail(f"Invalid date format: {args.date}. Please use YYYY-MM-DD.")
             return False
@@ -47,7 +47,7 @@ def run(sr: ScriptReporter, args):
     except Exception:
         cet_str = "CET conversion failed"
         
-    sr.log(f"⏰ Execution Time: {now.strftime('%Y-%m-%d %H:%M:%S')}  ({cet_str})")
+    print(f"⏰ Execution Time: {now.strftime('%Y-%m-%d %H:%M:%S')}  ({cet_str})")
 
     sr.stage("PREPARING")
     data_dir, cookie_dir = setup_directories()
@@ -56,18 +56,18 @@ def run(sr: ScriptReporter, args):
     
     # Try to load session
     if load_session(session, cookie_path):
-        sr.log("✅ Received existing session cookies.")
+        print("✅ Received existing session cookies.")
     else:
-        sr.log("ℹ️  No existing session. Starting fresh.")
+        print("ℹ️  No existing session. Starting fresh.")
 
     # ---------------------------------------------------------
     # STEP 1: INITIAL ROW SCAN
     # ---------------------------------------------------------
     sr.stage("SCANNING_LINKS")
-    sr.log("🔍 Step 1: Identifying target rows from Stooq...")
+    print("🔍 Step 1: Identifying target rows from Stooq...")
     candidate_rows = get_latest_download_link(session)
     if not candidate_rows:
-        sr.log("⚠️  Could not find download links. Will proceed to Browser flow to trigger scan.")
+        print("⚠️  Could not find download links. Will proceed to Browser flow to trigger scan.")
     else:
         # If target_date is specified, filter now
         if target_date_clean:
@@ -76,7 +76,7 @@ def run(sr: ScriptReporter, args):
             if not candidate_rows:
                 sr.fail(f"Target date {args.date} not found in available links.")
                 return False
-            sr.log(f"✅ Found matching row for {args.date}")
+            print(f"✅ Found matching row for {args.date}")
         
         # Check if we already have the data fully verified
         selected_row = candidate_rows[0]
@@ -91,17 +91,17 @@ def run(sr: ScriptReporter, args):
                 sr.success({"message": f"Latest row files already exist in '{data_dir}'. Stopping execution.", "status": "skipped"})
                 return True
             else:
-                sr.log(f"✨ Files for {args.date} already exist in '{data_dir}', but proceeding to refresh as requested.")
+                print(f"✨ Files for {args.date} already exist in '{data_dir}', but proceeding to refresh as requested.")
 
     # ---------------------------------------------------------
     # STEP 2-4: BROWSER ORCHESTRATION (Config -> Auth -> Download with Fallback)
     # ---------------------------------------------------------
     sr.stage("BROWSER_WORKFLOW")
-    sr.log("🔐 Step 2-4: Launching Browser for Full Workflow...")
+    print("🔐 Step 2-4: Launching Browser for Full Workflow...")
     headless_mode = True
     
     with sync_playwright() as p:
-        sr.log(f"   🌐 Browser Mode: {'HEADLESS' if headless_mode else 'VISIBLE'}")
+        print(f"   🌐 Browser Mode: {'HEADLESS' if headless_mode else 'VISIBLE'}")
         browser = p.chromium.launch(headless=headless_mode)
         context = browser.new_context(user_agent=session.headers.get('User-Agent'))
         
@@ -121,14 +121,14 @@ def run(sr: ScriptReporter, args):
         page = context.new_page()
 
         # [Config]
-        sr.log("   ⚙️  Configuring Stooq Settings...")
+        print("   ⚙️  Configuring Stooq Settings...")
         if not configure_stooq_settings(page):
             sr.fail("Settings configuration failed. Aborting.")
             browser.close()
             return False
 
         # [Auth]
-        sr.log("   🧩 Verifying Authorization & CAPTCHA...")
+        print("   🧩 Verifying Authorization & CAPTCHA...")
         if not solve_stooq_captcha(page):
             sr.fail("Authorization failed. Aborting.")
             browser.close()
@@ -139,7 +139,7 @@ def run(sr: ScriptReporter, args):
         
         # [Download Loop with Row Fallback]
         sr.stage("DOWNLOADING")
-        sr.log("   📥 Starting Download with Row Fallback...")
+        print("   📥 Starting Download with Row Fallback...")
         page.wait_for_timeout(1000)
         
         # Refresh candidate rows after auth (might have updated)
@@ -162,7 +162,7 @@ def run(sr: ScriptReporter, args):
         limit_rows = 3 if not target_date_clean else len(candidate_rows)
         
         for row_idx, row_links in enumerate(candidate_rows[:limit_rows]):
-            sr.log(f"\n   📂 Processing Row {row_idx + 1}/{min(limit_rows, len(candidate_rows))}: {[t[1] for t in row_links]}")
+            print(f"\n   📂 Processing Row {row_idx + 1}/{min(limit_rows, len(candidate_rows))}: {[t[1] for t in row_links]}")
             
             downloaded_files = [] # list of full file paths for this row
             row_failed = False
@@ -177,17 +177,17 @@ def run(sr: ScriptReporter, args):
                 downloaded_files.append(fpath)
 
                 # IMMEDIATE VERIFICATION
-                sr.log(f"   🔍 Verifying {actual_fname}...")
+                print(f"   🔍 Verifying {actual_fname}...")
                 try:
                     with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
                         lines = f.readlines()
                         content = "".join(lines)
                         row_count = max(0, len(lines) - 1)
                     
-                    sr.log(f"   📊 {actual_fname}: {row_count} rows found.")
+                    print(f"   📊 {actual_fname}: {row_count} rows found.")
 
                     if "Unauthorized" in content:
-                        sr.log(f"   ❌ {actual_fname}: Unauthorized access detected.")
+                        print(f"   ❌ {actual_fname}: Unauthorized access detected.")
                         row_failed = True
                     else:
                         # Required strings for ALL files
@@ -195,20 +195,20 @@ def run(sr: ScriptReporter, args):
                         missing = [m for m in required_markers if m not in content]
                         
                         if not missing:
-                            sr.log(f"   ✅ {actual_fname} contains required markers ({', '.join(required_markers)})")
+                            print(f"   ✅ {actual_fname} contains required markers ({', '.join(required_markers)})")
                         else:
-                            sr.log(f"   ❌ {actual_fname} MISSING required markers: {', '.join(missing)}")
+                            print(f"   ❌ {actual_fname} MISSING required markers: {', '.join(missing)}")
                             row_failed = True
                             
                 except Exception as e:
-                    sr.log(f"   ⚠️  Error reading {actual_fname}: {e}")
+                    print(f"   ⚠️  Error reading {actual_fname}: {e}")
                     row_failed = True
                 
                 if row_failed:
                     break
 
             if row_failed:
-                sr.log(f"   🗑️  Row {row_idx + 1} failed verification. Discarding partial set...")
+                print(f"   🗑️  Row {row_idx + 1} failed verification. Discarding partial set...")
                 for fpath in downloaded_files:
                     if os.path.exists(fpath): os.remove(fpath)
                 
@@ -218,7 +218,7 @@ def run(sr: ScriptReporter, args):
                 continue
 
             # If we reach here, all 3 files passed verification
-            sr.log(f"   ✨ SUCCESS: Row {row_idx + 1} set passed verification.")
+            print(f"   ✨ SUCCESS: Row {row_idx + 1} set passed verification.")
             success_row_index = row_idx
             break
         

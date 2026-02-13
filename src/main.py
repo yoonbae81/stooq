@@ -87,8 +87,13 @@ def run(sr: ScriptReporter, args):
                 break
         
         if all_exist and not args.force:
+            files_existing = [full_name for _, full_name in selected_row]
             if not args.date:
-                sr.success({"message": f"Latest row files already exist in '{data_dir}'. Stopping execution.", "status": "skipped"})
+                sr.success({
+                    "message": f"Latest row files already exist in '{data_dir}'. Stopping execution.", 
+                    "status": "skipped",
+                    "files": ", ".join(files_existing)
+                })
                 return True
             else:
                 print(f"✨ Files for {args.date} already exist in '{data_dir}', but proceeding to refresh as requested.")
@@ -168,6 +173,7 @@ def run(sr: ScriptReporter, args):
             row_failed = False
 
             for url, expected_name in row_links:
+                sr.stage(f"Downloading {expected_name}")
                 actual_fname = download_with_browser(page, url, expected_name, data_dir)
                 if not actual_fname:
                     row_failed = True
@@ -220,12 +226,18 @@ def run(sr: ScriptReporter, args):
             # If we reach here, all 3 files passed verification
             print(f"   ✨ SUCCESS: Row {row_idx + 1} set passed verification.")
             success_row_index = row_idx
+            # Capture filenames for reporting
+            final_files = [os.path.basename(f) for f in downloaded_files]
             break
         
         browser.close()
 
     if success_row_index != -1:
-        sr.success({"status": "completed", "message": "Verified data obtained and cleaned."})
+        sr.success({
+            "status": "completed", 
+            "message": "Verified data obtained and cleaned.",
+            "files": ", ".join(final_files)
+        })
         return True
     else:
         if target_date_clean:

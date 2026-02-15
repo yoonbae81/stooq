@@ -1,0 +1,10 @@
+[Unit]
+Description=Stooq Timer
+Requires=stooq.service
+
+[Timer]
+OnCalendar=Tue..Sat *-*-* 08:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

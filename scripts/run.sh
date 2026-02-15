@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 VENV_PYTHON="$PROJECT_DIR/.venv/bin/python"
 
-echo "Stooq - Running Main Script"
+echo "Stooq - Main Execution"
 echo "========================================"
 
 # Run core logic

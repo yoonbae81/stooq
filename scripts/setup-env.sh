@@ -41,11 +41,13 @@ echo "Installing Python dependencies..."
 echo "Dependencies installed"
 echo ""
 
-# Install Playwright browsers
-echo "Installing Playwright browsers..."
-"$VENV_DIR/bin/playwright" install chromium
-echo "Playwright browsers installed"
-echo ""
+# Install Playwright browsers (if playwright is installed)
+if "$VENV_DIR/bin/pip" show playwright &> /dev/null; then
+    echo "Installing Playwright browsers..."
+    "$VENV_DIR/bin/playwright" install chromium
+    echo "Playwright browsers installed"
+    echo ""
+fi
 
 # Check .env file
 if [ ! -f "$PROJECT_DIR/.env" ]; then
@@ -58,7 +60,7 @@ if [ ! -f "$PROJECT_DIR/.env" ]; then
         touch "$PROJECT_DIR/.env"
         echo ".env file created"
     fi
-    echo "Please edit .env and configure your settings if needed"
+    echo "Please edit .env and configure your settings"
 else
     echo ".env file exists"
 fi

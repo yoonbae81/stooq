@@ -1,0 +1,19 @@
+[Unit]
+Description=Stooq Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory={{PROJECT_ROOT}}
+Environment="PATH={{PROJECT_ROOT}}/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+EnvironmentFile={{PROJECT_ROOT}}/.env
+
+ExecStart={{PROJECT_ROOT}}/.venv/bin/python {{PROJECT_ROOT}}/src/main.py
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=stooq
+
+[Install]
+WantedBy=default.target

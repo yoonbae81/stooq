@@ -32,8 +32,8 @@ The project is designed with a modular architecture for easy maintenance and rel
 
 1. **Auto-Setup**: Run the provided script to create a virtual environment, install dependencies, and setup Playwright:
    ```bash
-   chmod +x scripts/setup_env.sh
-   ./scripts/setup_env.sh
+   chmod +x scripts/setup-env.sh
+   ./scripts/setup-env.sh
    ```
 
 2. **Verify Environment**:
@@ -64,11 +64,11 @@ The project includes pre-configured systemd units for Mac/Linux environments to 
 
 1. **Install Service**:
    ```bash
-   chmod +x scripts/install_systemd.sh
-   ./scripts/install_systemd.sh
+   chmod +x scripts/install-systemd.sh
+   ./scripts/install-systemd.sh
    ```
 
-This will set up `stooq-downloader.timer` to run the task periodically.
+This will set up `stooq.timer` to run the task periodically.
 
 ## 📂 Project Structure
 
@@ -85,8 +85,8 @@ stooq/
 │   ├── model.pkl            # Pre-trained template database
 │   └── training_data/       # Labeled samples for training
 ├── scripts/
-│   ├── setup_env.sh         # One-click environment setup
-│   ├── install_systemd.sh   # Service installation script
+│   ├── setup-env.sh         # One-click environment setup
+│   ├── install-systemd.sh   # Service installation script
 │   └── captcha/             # Model building utilities
 ├── data/                    # Storage for downloaded CSV/TXT files
 ├── cookies/                 # Persisted browser sessions (gitignored)

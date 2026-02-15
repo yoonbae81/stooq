@@ -4,20 +4,19 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
-SERVICE_NAME="stooq-downloader"
+SERVICE_NAME="stooq"
 
 echo "Stooq - Systemd Timer Installation"
 echo "=============================================="
 echo "Project directory: $PROJECT_DIR"
 echo ""
 
-# Load environment variables from .env if it exists
+# Load environment variables from .env
 if [ -f "$PROJECT_DIR/.env" ]; then
-    # Use a safer way to export .env
-    set -a
-    [ -f "$PROJECT_DIR/.env" ] && . "$PROJECT_DIR/.env"
-    set +a
+    export $(cat "$PROJECT_DIR/.env" | grep -v '^#' | xargs)
     echo "Environment variables loaded from .env"
+else
+    echo "Warning: .env file not found"
 fi
 
 # Create systemd directory
@@ -28,7 +27,7 @@ mkdir -p "$SYSTEMD_USER_DIR"
 echo "Creating $SERVICE_NAME.service..."
 cat > "$SYSTEMD_USER_DIR/$SERVICE_NAME.service" << EOF
 [Unit]
-Description=Stooq Data Downloader Service
+Description=Stooq Service
 After=network-online.target
 Wants=network-online.target
 
@@ -36,14 +35,13 @@ Wants=network-online.target
 Type=oneshot
 WorkingDirectory=$PROJECT_DIR
 Environment="PATH=$PROJECT_DIR/.venv/bin:/usr/local/bin:/usr/bin:/bin"
-# EnvironmentFile only works if the file exists and has correct format
-$( [ -f "$PROJECT_DIR/.env" ] && echo "EnvironmentFile=$PROJECT_DIR/.env" )
+EnvironmentFile=$PROJECT_DIR/.env
 
 ExecStart=$PROJECT_DIR/.venv/bin/python $PROJECT_DIR/src/main.py
 
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=stooq-downloader
+SyslogIdentifier=$SERVICE_NAME
 
 [Install]
 WantedBy=default.target
@@ -59,6 +57,10 @@ echo ""
 # Reload systemd daemon
 echo "Reloading systemd daemon..."
 systemctl --user daemon-reload
+
+# Enable linger for the user
+echo "Enabling linger for user $USER..."
+loginctl enable-linger "$USER"
 
 # Enable and start timer
 echo "Enabling and starting timer..."

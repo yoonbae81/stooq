@@ -182,6 +182,8 @@ def solve_stooq_captcha(page, max_retries=10):
                     content = page.content()
                     if "Authorization successful!" in content:
                         print("      ✅ Authorization successful!")
+                        page.reload(wait_until="domcontentloaded", timeout=60000)
+                        page.wait_for_timeout(2000)
                         captcha_solved = True
                         break
                     elif "Incorrect code" in content or "f15" in content:

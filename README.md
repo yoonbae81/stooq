@@ -8,7 +8,7 @@ A high-performance, fully automated Python tool designed to download market data
 - **Settings Automation**: Automatically configures the 'Setting Files Content' on Stooq to ensure specific tickers (like `AAPL.US`) are included in all data intervals.
 - **Session Persistence**: Maintains browser sessions and cookies to minimize CAPTCHA challenges and allow faster subsequent downloads.
 - **Comprehensive Data Fetching**: Downloads historical data across Daily, Hourly, and 5-minute intervals.
-- **Smart Data Verification**: Post-download validation to ensure file integrity and the presence of expected tickers (e.g., verifying `AAPL.US` exists and `9823.JP` is excluded).
+- **Smart Data Verification**: Post-download validation to ensure file integrity using multiple verification markers (checks for common tickers like `AAPL.US`, `^SPX`, `^DJI`, `GLD.US` - passes if at least one is found). Markers are configurable via `STOOQ_VERIFICATION_MARKERS` environment variable.
 - **Service-Ready**: Includes Systemd timer and service units for scheduled, reliable background execution.
 
 ## 🛠 Project Architecture

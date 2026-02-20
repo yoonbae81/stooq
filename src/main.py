@@ -4,7 +4,7 @@ import sys
 import warnings
 import argparse
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from playwright.sync_api import sync_playwright
 from script_reporter import ScriptReporter
@@ -38,6 +38,10 @@ def run(sr: ScriptReporter, args):
         except ValueError:
             sr.fail(f"Invalid date format: {args.date}. Please use YYYY-MM-DD.")
             return False
+    else:
+        target_date_obj = datetime.now() - timedelta(days=1)
+        target_date_clean = target_date_obj.strftime("%Y%m%d")
+        print(f"🎯 Target Date (default): {target_date_obj.strftime('%Y-%m-%d')} ({target_date_clean})")
 
     # Print execution time
     now = datetime.now()
@@ -171,6 +175,7 @@ def run(sr: ScriptReporter, args):
             
             downloaded_files = [] # list of full file paths for this row
             row_failed = False
+            unauthorized_detected = False
 
             for url, expected_name in row_links:
                 sr.stage(f"Downloading {expected_name}")
@@ -178,7 +183,7 @@ def run(sr: ScriptReporter, args):
                 if not actual_fname:
                     row_failed = True
                     break
-                
+
                 fpath = os.path.join(data_dir, actual_fname)
                 downloaded_files.append(fpath)
 
@@ -189,23 +194,32 @@ def run(sr: ScriptReporter, args):
                         lines = f.readlines()
                         content = "".join(lines)
                         row_count = max(0, len(lines) - 1)
-                    
+
                     print(f"   📊 {actual_fname}: {row_count} rows found.")
 
                     if "Unauthorized" in content:
                         print(f"   ❌ {actual_fname}: Unauthorized access detected.")
+                        unauthorized_detected = True
+                        row_failed = True
+                        break
+                    elif row_count < 5:
+                        print(f"   ❌ {actual_fname}: File has insufficient data ({row_count} rows, minimum 5 required).")
                         row_failed = True
                     else:
-                        # Required strings for ALL files
-                        required_markers = ["GLD.US"]
-                        missing = [m for m in required_markers if m not in content]
-                        
-                        if not missing:
-                            print(f"   ✅ {actual_fname} contains required markers ({', '.join(required_markers)})")
+                        env_markers = os.getenv("STOOQ_VERIFICATION_MARKERS", "")
+                        required_markers = [m.strip() for m in env_markers.split(",") if m.strip()] if env_markers else ["AAPL.US", "^SPX", "^DJI", "GLD.US"]
+
+                        found_markers = [m for m in required_markers if m in content]
+                        missing_markers = [m for m in required_markers if m not in content]
+
+                        if found_markers:
+                            print(f"   ✅ {actual_fname} contains {len(found_markers)} verification marker(s): {', '.join(found_markers)}")
+                            if missing_markers:
+                                print(f"   ℹ️  Note: Missing markers: {', '.join(missing_markers)}")
                         else:
-                            print(f"   ❌ {actual_fname} MISSING required markers: {', '.join(missing)}")
+                            print(f"   ❌ {actual_fname} MISSING all verification markers: {', '.join(required_markers)}")
                             row_failed = True
-                            
+
                 except Exception as e:
                     print(f"   ⚠️  Error reading {actual_fname}: {e}")
                     row_failed = True
@@ -214,10 +228,19 @@ def run(sr: ScriptReporter, args):
                     break
 
             if row_failed:
+                # If unauthorized detected, stop everything and report error
+                if unauthorized_detected:
+                    print(f"   🚫 Unauthorized access detected. Stopping immediately.")
+                    for fpath in downloaded_files:
+                        if os.path.exists(fpath): os.remove(fpath)
+                    browser.close()
+                    sr.fail(f"Unauthorized access detected when downloading {expected_name}. Stopping.")
+                    return False
+
                 print(f"   🗑️  Row {row_idx + 1} failed verification. Discarding partial set...")
                 for fpath in downloaded_files:
                     if os.path.exists(fpath): os.remove(fpath)
-                
+
                 # If a specific date was requested, do not fallback
                 if target_date_clean:
                     break

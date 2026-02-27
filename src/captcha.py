@@ -112,36 +112,36 @@ def solve_stooq_captcha(page, max_retries=10):
     """
     Session Authorization Logic (re-uses existing Page/Context)
     """
-    print("🔐 Triggering CAPTCHA...")
-    
+    print("Triggering CAPTCHA...")
+
     # 1. Page Load
     if "stooq.com/db" not in page.url:
         page.goto("https://stooq.com/db/", timeout=60000)
-    
+
     page.wait_for_load_state("domcontentloaded")
-    
+
     # Reset/Reload to clear old state - use domcontentloaded to avoid ad-related timeouts
-    page.reload(wait_until="domcontentloaded", timeout=60000) 
+    page.reload(wait_until="domcontentloaded", timeout=60000)
     page.wait_for_timeout(2000)
 
     captcha_solved = False
     for c_attempt in range(max_retries):
-        print(f"   🎟️  CAPTCHA Attempt {c_attempt + 1}/{max_retries}...")
-        
+        print(f"   CAPTCHA Attempt {c_attempt + 1}/{max_retries}...")
+
         downloads = []
         def on_download(download):
                 downloads.append(download)
-        
+
         listener_added = False
         try:
             page.on("download", on_download)
             listener_added = True
-            
+
             # Find download link
             download_link = page.locator("a").filter(has_text="_d").first
             if not download_link.is_visible():
                 download_link = page.locator("xpath=//a[contains(@href, 't=d')]").first
-            
+
             # Click and wait for response OR download
             try:
                 # Small retry for the click itself if page state is unstable
@@ -157,7 +157,7 @@ def solve_stooq_captcha(page, max_retries=10):
                             click_success = True
                             break
                         page.wait_for_timeout(1000)
-                
+
                 if not click_success and not downloads:
                     raise Exception("Could not trigger CAPTCHA or Download after click retries.")
 
@@ -167,52 +167,52 @@ def solve_stooq_captcha(page, max_retries=10):
                     os.makedirs("tmp", exist_ok=True)
                     with open(temp_captcha, 'wb') as f:
                         f.write(resp.value.body())
-                    
+
                     solution = solve_text_from_image(temp_captcha)
-                    print(f"      🧠 Auto-solver: {solution}")
-                    
+                    print(f"      Auto-solver: {solution}")
+
                     # Fill and submit
                     page.fill("#f15", "")
                     page.fill("#f15", solution)
                     page.keyboard.press("Enter")
-                    
+
                     # Wait to see result
                     page.wait_for_timeout(3000)
-                    
+
                     content = page.content()
                     if "Authorization successful!" in content:
-                        print("      ✅ Authorization successful!")
+                        print("      Authorization successful!")
                         page.reload(wait_until="domcontentloaded", timeout=60000)
                         page.wait_for_timeout(2000)
                         captcha_solved = True
                         break
                     elif "Incorrect code" in content or "f15" in content:
-                        print("      ❌ Incorrect code or retry required. Retrying...")
+                        print("      Incorrect code or retry required. Retrying...")
                         continue
                     else:
                         if not page.locator("#f15").is_visible():
-                                print("      ❓ Overlay gone, assuming success.")
+                                print("      Overlay gone, assuming success.")
                                 captcha_solved = True
                                 break
                 else:
-                    print("      ✅ Already authorized!")
+                    print("      Already authorized!")
                     downloads[0].cancel()
                     captcha_solved = True
                     break
-                            
+
             except Exception as e:
                 # Check for download (Already Authorized)
                 if downloads:
-                    print("      ✅ Download started. Already authorized!")
+                    print("      Download started. Already authorized!")
                     downloads[0].cancel()
                     captcha_solved = True
                     break
-                    
+
                 if "Timeout" in str(e):
                     print("         (Timeout waiting for CAPTCHA response)")
                 else:
-                    print(f"      ⚠️  Error during inner CAPTCHA step: {e}")
-                
+                    print(f"      Error during inner CAPTCHA step: {e}")
+
                 page.reload(wait_until="domcontentloaded", timeout=60000)
                 page.wait_for_timeout(2000)
 

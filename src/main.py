@@ -181,6 +181,8 @@ def run(sr: ScriptReporter, args):
         success_row_index = -1
         # Limit to top 3 rows as requested, unless a specific date is specified
         limit_rows = 3 if not target_date_clean else len(candidate_rows)
+        max_auth_retries = 3  # Maximum retries for unauthorized access
+        auth_retry_count = 0
 
         for row_idx, row_links in enumerate(candidate_rows[:limit_rows]):
             print(f"\n   Processing Row {row_idx + 1}/{min(limit_rows, len(candidate_rows))}: {[t[1] for t in row_links]}")
@@ -240,14 +242,44 @@ def run(sr: ScriptReporter, args):
                     break
 
             if row_failed:
-                # If unauthorized detected, stop everything and report error
+                # If unauthorized detected, retry with session refresh instead of stopping
                 if unauthorized_detected:
-                    print(f"   Unauthorized access detected. Stopping immediately.")
+                    auth_retry_count += 1
+                    if auth_retry_count > max_auth_retries:
+                        print(f"   Unauthorized access detected after {max_auth_retries} retries. Giving up.")
+                        for fpath in downloaded_files:
+                            if os.path.exists(fpath): os.remove(fpath)
+                        browser.close()
+                        sr.fail(f"Unauthorized access detected when downloading. Max retries exceeded.")
+                        return False
+
+                    print(f"   Unauthorized access detected. Refreshing session (attempt {auth_retry_count}/{max_auth_retries})...")
                     for fpath in downloaded_files:
                         if os.path.exists(fpath): os.remove(fpath)
-                    browser.close()
-                    sr.fail(f"Unauthorized access detected when downloading {expected_name}. Stopping.")
-                    return False
+
+                    # Reload page and re-authenticate
+                    print("   Reloading page and re-authenticating...")
+                    page.goto("https://stooq.com/db/", timeout=60000)
+                    page.wait_for_load_state("domcontentloaded")
+                    page.wait_for_timeout(2000)
+
+                    # Re-solve CAPTCHA
+                    if not solve_stooq_captcha(page):
+                        print("   Re-authentication failed. Retrying...")
+                        continue
+
+                    # Save updated session
+                    save_session(context, session, cookie_path)
+
+                    # Re-verify session
+                    if not load_session(session, cookie_path):
+                        print("   Session verification failed. Retrying...")
+                        continue
+
+                    print("   Session refreshed successfully. Retrying download...")
+                    # Reset row index to retry the same row
+                    row_idx -= 1
+                    continue
 
                 print(f"   Row {row_idx + 1} failed verification. Discarding partial set...")
                 for fpath in downloaded_files:
